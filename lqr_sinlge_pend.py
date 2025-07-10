@@ -28,10 +28,10 @@ fps = 45
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
-q = np.diag([10, 10, 10, 10])
+q = np.diag([100, 30, 500, 10])
 
 #actuation cost
-r = np.array([[0.01]])
+r = np.array([[0.04]])
 
 #jacobian of state space function
 def jac(y, g=grav, l=len, m=mass):
@@ -61,9 +61,9 @@ def pendulum(t, y, l=len, g=grav, m=mass, K=k):
 
     #this alternates between x positions every 5 seconds
     if int(t/5)%2 == 0:
-        x_target = 0.5
+        x_target = 0.3
     else: 
-        x_target = -0.5
+        x_target = -0.3
 
     u = -np.dot(K, (y-fp_up - [0,0,x_target,0]))
     #print(u)
