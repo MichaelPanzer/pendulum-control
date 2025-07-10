@@ -19,22 +19,19 @@ def inter(x, xp, fp):
 mass, len, grav, c = 0.1, 0.3, 9.81, 0.01
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
-th0, th_dot0, x0, x_dot0 = np.radians(185), 0, 0, 0
+th0, th_dot0, x0, x_dot0 = np.radians(180), 0, 0, 0
 
 #animation params
-duration = 10 #seconds
+duration = 30 #seconds
 fps = 45
 
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
-q = np.array([[10, 0, 0, 0],
-              [0, 100, 0 , 0],
-              [0, 0, 1, 0],
-              [0, 0, 0, 1]])
+q = np.diag([10, 10, 10, 10])
 
 #actuation cost
-r = np.array([[1e-2]])
+r = np.array([[0.01]])
 
 #jacobian of state space function
 def jac(y, g=grav, l=len, m=mass):
@@ -43,6 +40,7 @@ def jac(y, g=grav, l=len, m=mass):
                      [-(g*np.cos(th))/l, -c/(m*(l**2)), 0, 0],
                      [0, 0, 0, 1],
                      [0, 0, 0, 0]]),
+
              np.array([[0, -np.cos(th)/l, 0, 1]]).T)
 
 #fixed point linearized matrix around up pos
@@ -51,18 +49,23 @@ a_up , b_up = jac(fp_up)
 print(np.linalg.matrix_rank(control.ctrb(a_up, b_up)))
 p = sp.linalg.solve_continuous_are(a_up, b_up, q, r, s=fp_up[:, None])
 #print(p)
-print(a_up.T.dot(p) + p.dot(a_up) - p.dot(b_up).dot(np.linalg.inv(r)).dot(b_up.T).dot(p) + q)
 k = np.linalg.inv(r).dot(b_up.T).dot(p)
 #k = sp.signal.place_poles(a_up,b_up,[-10.1,-10.2,-10.3,-10.4]).gain_matrix
 #print(a_up - b_up*k)
 print(np.linalg.eigvals(a_up - b_up*k))
 
-#state space derivative
 
+#state space derivative
 def pendulum(t, y, l=len, g=grav, m=mass, K=k):
     th, th_dot, x, x_dot = y
 
-    u = -np.dot(K, (y-fp_up))
+    #this alternates between x positions every 5 seconds
+    if int(t/5)%2 == 0:
+        x_target = 0.5
+    else: 
+        x_target = -0.5
+
+    u = -np.dot(K, (y-fp_up - [0,0,x_target,0]))
     #print(u)
     x_ddot = u[0]
 
@@ -85,7 +88,7 @@ fig = plt.figure()
 ax = fig.add_subplot(aspect='equal')
 
 # Set the plot limits so that the pendulum has room to swing
-w=5
+w=3
 h=1.3
 ax.set_xlim(-len*w, len*w)
 ax.set_ylim(-len*h, len*h)
