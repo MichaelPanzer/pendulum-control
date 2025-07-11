@@ -9,17 +9,16 @@ import control
 
 #This is sum bullshit cuz the numpy inter function was giving sus outputs
 def inter(x, xp, fp):
+    """linearly interpolates between two points"""
     x0, x1 = xp
     f0, f1 = fp
     return (x-x0)*(f1-f0)/(x1-x0) + f0
 
-
-
 # Bob mass (kg), pendulum length (m), acceleration due to gravity (m.s-2).
-mass, len, grav, c = 0.1, 0.3, 9.81, 0.01
+mass, len, grav, c = 0.1, 0.2, 9.81, 0.01
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
-th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0, 0
+th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
 
 #animation params
 duration = 30 #seconds
@@ -35,6 +34,7 @@ r = np.array([[0.04]])
 
 #jacobian of state space function
 def jac(y, g=grav, l=len, m=mass):
+    """calculates the jacobian of the state space derivate to linearize around fixed point (A, B)"""
     th, th_dot, x, x_dot = y
     return (np.array([[0, 1, 0, 0],
                      [-(g*np.cos(th))/l, -c/(m*(l**2)), 0, 0],
@@ -54,40 +54,44 @@ k = np.linalg.inv(r).dot(b_up.T).dot(p)
 #print(a_up - b_up*k)
 print(np.linalg.eigvals(a_up - b_up*k))
 
-def stabilize(t, y, K):
-    if int(t/5)%2 == 0:
-        x_target = 0.3
+def stabilize(t, y, K, x_target):
+    """stabilize around pendulum up fixed point with alternating x position"""
+    time = 5
+    if int(t/time)%2 == 0:
+        dir=1
     else: 
-        x_target = -0.3
-    return -np.dot(K, (y-fp_up - [0,0,x_target,0]))
+        dir=-1
+    return -np.dot(K, (y-fp_up - [0,0,x_target*dir,0]))
 
 def erect(t, y, l, g):
+    """pumps pendulum and boosts energy to erect the pendulum"""
     th, th_dot, x, x_dot = y
     v_max = 2
-    x_max = 1000
+    x_max = 1.3
     a_max = 20
     energy = -(1+np.cos(th) -l*th_dot**2/(2*g))
 
     if energy<0:
-        if (th_dot*np.cos(th)<0 and x_dot<v_max) or x<-x_max:
+        if (th_dot*np.cos(th)<0 and x_dot<v_max):
             return np.array([a_max])
-        elif (th_dot*np.cos(th)>0 and x_dot>-v_max) or x>x_max:
+        elif (th_dot*np.cos(th)>0 and x_dot>-v_max):
             return np.array([-a_max])
 
-    return [0]        
+    return np.array([0])       
 
 def normalize(y):
-    """normalized the position of the pendulum [0-2pi]"""
+    """normalized the theta position of the pendulum to [0-2pi]"""
     y[0] = y[0]%(2*np.pi)
     return y
 
-#state space derivative
+
 def pendulum(t, y, l=len, g=grav, m=mass, K=k):
+    """returns the full nonlinear state space derivative"""
     y = normalize(y)
     th, th_dot, x, x_dot = y
 
     if np.abs(th-np.pi) < np.radians(50):
-        u = stabilize(t, y, K)
+        u = stabilize(t, y, K, 0.2)
     else: 
         u = erect(t, y, l, g)
 
@@ -146,7 +150,7 @@ ani = animation.FuncAnimation(fig, animate, frames=nframes, repeat=False, interv
 plt.show()
 
 plt.plot(time_tree.data, states[0], 'b')#theta position
-plt.plot(time_tree.data, states[3], 'r')#x velo
+plt.plot(time_tree.data, states[2], 'r')#x position 
 
 plt.show()
 
