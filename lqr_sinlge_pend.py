@@ -19,7 +19,7 @@ def inter(x, xp, fp):
 mass, len, grav, c = 0.1, 0.3, 9.81, 0.01
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
-th0, th_dot0, x0, x_dot0 = np.radians(180), 0, 0, 0
+th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0, 0
 
 #animation params
 duration = 30 #seconds
@@ -54,21 +54,44 @@ k = np.linalg.inv(r).dot(b_up.T).dot(p)
 #print(a_up - b_up*k)
 print(np.linalg.eigvals(a_up - b_up*k))
 
-
-#state space derivative
-def pendulum(t, y, l=len, g=grav, m=mass, K=k):
-    th, th_dot, x, x_dot = y
-
-    #this alternates between x positions every 5 seconds
+def stabilize(t, y, K):
     if int(t/5)%2 == 0:
         x_target = 0.3
     else: 
         x_target = -0.3
+    return -np.dot(K, (y-fp_up - [0,0,x_target,0]))
 
-    u = -np.dot(K, (y-fp_up - [0,0,x_target,0]))
-    #print(u)
+def erect(t, y, l, g):
+    th, th_dot, x, x_dot = y
+    v_max = 2
+    x_max = 1000
+    a_max = 20
+    energy = -(1+np.cos(th) -l*th_dot**2/(2*g))
+
+    if energy<0:
+        if (th_dot*np.cos(th)<0 and x_dot<v_max) or x<-x_max:
+            return np.array([a_max])
+        elif (th_dot*np.cos(th)>0 and x_dot>-v_max) or x>x_max:
+            return np.array([-a_max])
+
+    return [0]        
+
+def normalize(y):
+    """normalized the position of the pendulum [0-2pi]"""
+    y[0] = y[0]%(2*np.pi)
+    return y
+
+#state space derivative
+def pendulum(t, y, l=len, g=grav, m=mass, K=k):
+    y = normalize(y)
+    th, th_dot, x, x_dot = y
+
+    if np.abs(th-np.pi) < np.radians(50):
+        u = stabilize(t, y, K)
+    else: 
+        u = erect(t, y, l, g)
+
     x_ddot = u[0]
-
     th_ddot = -(x_ddot*np.cos(th) + g*np.sin(th))/l - c*th_dot/(m*(l**2))
 
     return np.array([th_dot, th_ddot, x_dot, x_ddot])
@@ -123,7 +146,7 @@ ani = animation.FuncAnimation(fig, animate, frames=nframes, repeat=False, interv
 plt.show()
 
 plt.plot(time_tree.data, states[0], 'b')#theta position
-plt.plot(time_tree.data, states[2], 'r')#x position
+plt.plot(time_tree.data, states[3], 'r')#x velo
 
 plt.show()
 
