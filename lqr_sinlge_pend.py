@@ -7,6 +7,9 @@ from scipy.interpolate import LinearNDInterpolator
 from scipy.optimize import fsolve
 import control
 
+"""
+Self erecting inverted pendulum using LQR controller 
+"""
 #This is sum bullshit cuz the numpy inter function was giving sus outputs
 def inter(x, xp, fp):
     """linearly interpolates between two points"""
@@ -22,7 +25,7 @@ th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
 
 #animation params
 duration = 30 #seconds
-fps = 45
+fps = 45 #fps
 
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
@@ -32,9 +35,8 @@ q = np.diag([100, 30, 500, 10])
 #actuation cost
 r = np.array([[0.04]])
 
-#jacobian of state space function
 def jac(y, g=grav, l=len, m=mass):
-    """calculates the jacobian of the state space derivate to linearize around fixed point (A, B)"""
+    """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
     th, th_dot, x, x_dot = y
     return (np.array([[0, 1, 0, 0],
                      [-(g*np.cos(th))/l, -c/(m*(l**2)), 0, 0],
@@ -43,15 +45,13 @@ def jac(y, g=grav, l=len, m=mass):
 
              np.array([[0, -np.cos(th)/l, 0, 1]]).T)
 
-#fixed point linearized matrix around up pos
 a_up , b_up = jac(fp_up)
 
-print(np.linalg.matrix_rank(control.ctrb(a_up, b_up)))
+print(np.linalg.matrix_rank(control.ctrb(a_up, b_up)))#rank of controllability matrix, if rank=4 then system is controllable 
+
 p = sp.linalg.solve_continuous_are(a_up, b_up, q, r, s=fp_up[:, None])
-#print(p)
 k = np.linalg.inv(r).dot(b_up.T).dot(p)
-#k = sp.signal.place_poles(a_up,b_up,[-10.1,-10.2,-10.3,-10.4]).gain_matrix
-#print(a_up - b_up*k)
+
 print(np.linalg.eigvals(a_up - b_up*k))
 
 def stabilize(t, y, K, x_target):
@@ -69,7 +69,7 @@ def erect(t, y, l, g):
     v_max = 2
     x_max = 1.3
     a_max = 20
-    energy = -(1+np.cos(th) -l*th_dot**2/(2*g))
+    energy = -(1 + np.cos(th) - l*th_dot**2/(2*g))
 
     if energy<0:
         if (th_dot*np.cos(th)<0 and x_dot<v_max):
@@ -101,13 +101,12 @@ def pendulum(t, y, l=len, g=grav, m=mass, K=k):
     return np.array([th_dot, th_ddot, x_dot, x_ddot])
 
 
-#solution to the pendulum ivp over the specified time range 
 y_init = np.array([th0, th_dot0, x0, x_dot0])
 sol = sp.integrate.solve_ivp(fun=pendulum, t_span=[0.0, duration], y0=y_init, max_step=0.01)
 
 
 #KDTree and array are used as lookup table for interpolation of results
-time_tree = KDTree([[t,] for t in sol.t])
+time_tree = ([[t,] for t in sol.t])
 states = sol.y
 
 # Initialize the animation plot. Make the aspect ratio equal so it looks right.
