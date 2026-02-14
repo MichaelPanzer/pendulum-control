@@ -18,7 +18,7 @@ def inter(x, xp, fp):
     return (x-x0)*(f1-f0)/(x1-x0) + f0
 
 # Bob mass (kg), pendulum length (m), acceleration due to gravity (m.s-2).
-mass, len, grav, c = 0.079, 0.2, 9.81, 0.001
+mass, len, grav, c = 120e-3, 400e-3, 9.81, 0.01
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
 th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
@@ -33,7 +33,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 q = np.diag([100, 30, 500, 10])
 
 #actuation cost
-r = np.array([[0.2]])
+r = np.array([[0.01]])
 
 def jac(y, g=grav, l=len, m=mass):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
@@ -92,7 +92,7 @@ def pendulum(t, y, l=len, g=grav, m=mass, K=k):
     th, th_dot, x, x_dot = y
 
     if np.abs(th-np.pi) < np.radians(50):
-        u = stabilize(t, y, K, 0.05)
+        u = stabilize(t, y, K, 100e-3)
     else: 
         u = erect(t, y, l, g)
 
@@ -102,7 +102,7 @@ def pendulum(t, y, l=len, g=grav, m=mass, K=k):
     return np.array([th_dot, th_ddot, x_dot, x_ddot])
 
 
-y_init = np.array([np.pi/2, th_dot0, x0, x_dot0])
+y_init = np.array([np.pi*0.95, th_dot0, x0, x_dot0])
 sol = sp.integrate.solve_ivp(fun=pendulum, t_span=[0.0, duration], y0=y_init, max_step=0.01)
 
 
@@ -149,8 +149,9 @@ times = np.linspace(0,duration, num=nframes)
 ani = animation.FuncAnimation(fig, animate, frames=nframes, repeat=False, interval=1000/fps, fargs = (times,))
 plt.show()
 
-plt.plot(time_tree.data, states[0], 'b')#theta position
-plt.plot(time_tree.data, states[2], 'r')#x position 
+plt.plot(time_tree.data, states[0], 'b', label='θ')#theta position
+plt.plot(time_tree.data, states[3], 'r', label='v')#x position 
+plt.legend()
 
 plt.show()
 

@@ -15,34 +15,36 @@ Adafruit_AS5600 as5600;
 #define stepPin 9 
 
 #define SW_RX 4
-#define SW_TX 3
+#define SW_TX 6
 SoftwareSerial SERIAL_PORT(SW_RX, SW_TX);
 TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 
 //Constants
 #define PI 3.1415926535897932384626433832795
+
+#define totalWidth 0.556
+#define buffer 0.030
+
 #define microstep 8
 
-const float totalWidth = 0.556;
-const float buffer = 0.015;
+#define stepsPerRevolution 200*microstep
+#define pulleyTeeth 40
+#define beltPitch 2e-3
 
-const float stepsPerRevolution = 200*microstep;
-const float pulleyTeeth = 20;
-const float beltPitch = 0.002;
-
-const float MAX_SPEED = 0.2;
+#define MAX_SPEED 0.8
+#define MAX_ACCEL 100
 
 BLA::Matrix<4,1> state;
 float time, lastTime, v, dt;
 
-BLA::Matrix<4,1> fpUp = {PI/2, 0, 0, 0};
-BLA::Matrix<1,4> k = { 199.6155074, 44.07988199, -111.80339887, -79.79097216};
+BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
+BLA::Matrix<1,4> k = { 262.63634774,  122.52764525, -223.60679775 , -163.85197399};
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 
 
-float toSteps(float x){
+int toSteps(float x){
   return stepsPerRevolution*x/(pulleyTeeth*beltPitch);
 }
 
@@ -54,9 +56,7 @@ Matrix<4,1> calcState(float theta, float x, float xDot, BLA::Matrix<4,1> state, 
   BLA::Matrix<4,1> newState;
   float dTheta = (theta - state(0));
 
-  if(dt<1e-6){
-    dt = 1e-6;
-  }
+
   newState(0) = theta;
   newState(1) =  dTheta / dt;
   newState(2) = x;
@@ -66,7 +66,7 @@ Matrix<4,1> calcState(float theta, float x, float xDot, BLA::Matrix<4,1> state, 
 }
 
 void setup(){  
-  Serial.begin(57600);
+  Serial.begin(115200);
 
   //SETUP ENCODER
   if (!as5600.begin()) {
@@ -88,9 +88,10 @@ void setup(){
   as5600.setMaxAngle(4095);
 
   //SETUP STEPPER DRIVER
-  SERIAL_PORT.begin(9600);
+  SERIAL_PORT.begin(115200);
   driver.begin();
   driver.toff(5);
+  driver.rms_current(2000); // Set motor current to 1200 mA RMS (adjust to your motor spec)
   if (microstep==1) driver.microsteps(0);//full step mode
   else driver.microsteps(microstep);
   Serial.println(driver.microsteps());
@@ -102,8 +103,8 @@ void setup(){
 
   // HOMING
   pinMode(limSw, INPUT_PULLUP);  
-  stepper->setAcceleration(toSteps(10));  // steps/sec^2
   stepper->setSpeedInHz(toSteps(0.1));   
+  stepper->setAcceleration(toSteps(MAX_ACCEL));
   stepper->runForward();
   while(digitalRead(limSw)){
     //Serial.println("homing");
@@ -120,34 +121,39 @@ void setup(){
   stepper->setCurrentPosition(0);
   Serial.println("homed");
 
-  state = {as5600.getAngle()*PI/4095., 0, toDistance(stepper->getCurrentPosition()), 0};
+  state = {as5600.getAngle()*2*PI/4095., 0, 0, 0};
 
   delay(3000);
-  lastTime = millis()*1e-3;
+  lastTime = micros()*1e-6;
 }
  
 
 void loop(){  
-  time = millis()*1e-3;
+  time = micros()*1e-6;
   dt = time-lastTime;
-  state = calcState(as5600.getAngle()*PI/4095., toDistance(stepper->getCurrentPosition()), v, state, dt);
+  
+  state = calcState((as5600.getAngle()) * 2*PI / 4095.0, toDistance(stepper->getCurrentPosition())/64, v, state, dt);
   lastTime = time;
-
-  if (abs(state(2)) > totalWidth/2 - buffer) {
+  if (abs(state(2)) > 0.5*totalWidth - buffer) {
     stepper->moveTo(0);
     delay(5000);
     v = 0;
   }
+  
 
   //LQR TO CALC ACCELERATION
   v += (dt*(k * (state-fpUp))(0));
   if(v>MAX_SPEED) v=MAX_SPEED;
   else if (v<-MAX_SPEED) v = -MAX_SPEED;
+  
   //APPLY ACCELERATION;
   stepper->setSpeedInHz(abs(toSteps(v)));
 
   if (v >= 0) stepper->runForward();
   else stepper->runBackward();
+  
+  Serial.println(state);
+
 }
 
 
