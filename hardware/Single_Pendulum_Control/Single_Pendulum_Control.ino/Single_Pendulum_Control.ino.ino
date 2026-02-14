@@ -38,7 +38,7 @@ BLA::Matrix<4,1> state;
 float time, lastTime, v, dt;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
-BLA::Matrix<1,4> k = { 262.63634774,  122.52764525, -223.60679775 , -163.85197399};
+BLA::Matrix<1,4> k = { 230.08892961 , 73.56678896, -70.71067812, -61.06097946};
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
