@@ -18,7 +18,7 @@ def inter(x, xp, fp):
     return (x-x0)*(f1-f0)/(x1-x0) + f0
 
 # Bob mass (kg), pendulum length (m), acceleration due to gravity (m.s-2).
-mass, len, grav, c = 0.1, 0.2, 9.81, 0.01
+mass, len, grav, c = 0.079, 0.2, 9.81, 0.001
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
 th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
@@ -33,7 +33,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 q = np.diag([100, 30, 500, 10])
 
 #actuation cost
-r = np.array([[0.04]])
+r = np.array([[0.2]])
 
 def jac(y, g=grav, l=len, m=mass):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
@@ -51,6 +51,8 @@ print(np.linalg.matrix_rank(control.ctrb(a_up, b_up)))#rank of controllability m
 
 p = sp.linalg.solve_continuous_are(a_up, b_up, q, r, s=fp_up[:, None])
 k = np.linalg.inv(r).dot(b_up.T).dot(p)
+
+print(k)
 
 print(np.linalg.eigvals(a_up - b_up*k))
 
@@ -70,7 +72,6 @@ def erect(t, y, l, g):
     x_max = 1.3
     a_max = 20
     energy = -(1 + np.cos(th) - l*th_dot**2/(2*g))
-
     if energy<0:
         if (th_dot*np.cos(th)<0 and x_dot<v_max):
             return np.array([a_max])
@@ -91,7 +92,7 @@ def pendulum(t, y, l=len, g=grav, m=mass, K=k):
     th, th_dot, x, x_dot = y
 
     if np.abs(th-np.pi) < np.radians(50):
-        u = stabilize(t, y, K, 0.2)
+        u = stabilize(t, y, K, 0.05)
     else: 
         u = erect(t, y, l, g)
 
@@ -101,12 +102,12 @@ def pendulum(t, y, l=len, g=grav, m=mass, K=k):
     return np.array([th_dot, th_ddot, x_dot, x_ddot])
 
 
-y_init = np.array([th0, th_dot0, x0, x_dot0])
+y_init = np.array([np.pi/2, th_dot0, x0, x_dot0])
 sol = sp.integrate.solve_ivp(fun=pendulum, t_span=[0.0, duration], y0=y_init, max_step=0.01)
 
 
 #KDTree and array are used as lookup table for interpolation of results
-time_tree = ([[t,] for t in sol.t])
+time_tree = KDTree(([[t,] for t in sol.t]))
 states = sol.y
 
 # Initialize the animation plot. Make the aspect ratio equal so it looks right.
