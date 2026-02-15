@@ -83,46 +83,11 @@ void setup(){
   as5600.setSlowFilter(AS5600_SLOW_FILTER_16X);
   as5600.setFastFilterThresh(AS5600_FAST_FILTER_THRESH_SLOW_ONLY);
   // Reset position settings to defaults
-  as5600.setZPosition(as5600.getRawAngle()+4095/2);
-  as5600.setMPosition(4095);
-  as5600.setMaxAngle(4095);
+  as5600.setZPosition(as5600.getRawAngle());
+  as5600.setMPosition(0);
+  as5600.setMaxAngle(4096/4-1);
 
-  //SETUP STEPPER DRIVER
-  SERIAL_PORT.begin(115200);
-  driver.begin();
-  driver.toff(5);
-  driver.rms_current(2000); // Set motor current to 1200 mA RMS (adjust to your motor spec)
-  if (microstep==1) driver.microsteps(0);//full step mode
-  else driver.microsteps(microstep);
-  Serial.println(driver.microsteps());
-
-  engine.init();
-  stepper = engine.stepperConnectToPin(stepPin);
-  stepper->setDirectionPin(dirPin);
-  stepper->setAutoEnable(true);   // <---- ADD THIS
-
-  // HOMING
-  pinMode(limSw, INPUT_PULLUP);  
-  stepper->setSpeedInHz(toSteps(0.1));   
-  stepper->setAcceleration(toSteps(MAX_ACCEL));
-  stepper->runForward();
-  while(digitalRead(limSw)){
-    //Serial.println("homing");
-  }
-  stepper->forceStop();
-  delay(200);
-
-  stepper->setCurrentPosition(0);
-  stepper->moveTo(toSteps(-totalWidth / 2.0));
-  while (stepper->isRunning()) {
-    // wait
-  }
-  // Reset zero again
-  stepper->setCurrentPosition(0);
-  Serial.println("homed");
-
-
-  delay(3000);
+  delay(5000);
 }
  
 
@@ -132,7 +97,7 @@ void loop(){
   Serial.print("(");
   Serial.print(time, 6);
   Serial.print(", ");
-  Serial.print((as5600.getAngle()* 2*PI / 4095.0)-PI, 6);
+  Serial.print(as5600.getAngle());
   Serial.println("),");
 
 }

@@ -38,10 +38,10 @@ fps = 45 #fps
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
-q = np.diag([10000, 40, 5000, 5]) #th, thdot, x, xdot
+q = np.diag([1000, 50, 500, 5]) #th, thdot, x, xdot
 
 #actuation cost
-r = np.array([[0.1]])
+r = np.array([[0.5]])
 
 def jac(y, l=len):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
@@ -116,7 +116,7 @@ def pendulum(t, y, K=k, stab=True):
     return np.array([th_dot, th_ddot, x_dot, x_ddot])
 
 
-y_init = np.array([np.pi*0.95, th_dot0, x0, x_dot0])
+y_init = np.array([np.pi*0.85, th_dot0, x0, x_dot0])
 sol = sp.integrate.solve_ivp(fun=pendulum, t_span=[0.0, duration], y0=y_init, max_step=0.01)
 
 

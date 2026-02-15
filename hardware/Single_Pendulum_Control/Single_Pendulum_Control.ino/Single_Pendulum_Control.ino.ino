@@ -25,20 +25,20 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define totalWidth 0.556
 #define buffer 0.030
 
-#define microstep 16
+#define microstep 8
 
 #define stepsPerRevolution (200*microstep)
 #define pulleyTeeth 60
 #define beltPitch 2e-3
 
 #define MAX_SPEED 1.0
-#define MAX_ACCEL 100000
+#define MAX_ACCEL 40000
 
 BLA::Matrix<4,1> state;
 float time, lastTime, v, dt;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
-BLA::Matrix<1,4> k = {488.03913022,   76.50642164 ,-223.60679775, -152.58917222};
+BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
@@ -59,7 +59,7 @@ Matrix<4,1> calcState(float theta, float last_theta, float llast_theta, float x,
   BLA::Matrix<4,1> newState;
   //float dTheta = (theta - last_theta);
   newState(0) = theta;
-  newState(1) =  ((-dt-last_dt)*(theta-last_theta) - (-dt)*(theta-llast_theta))/((-dt)*(-dt-last_dt)*(-last_dt));
+  newState(1) =  ((-dt-last_dt)*(theta-last_theta) - (-dt)*(theta-llast_theta)) /((-dt)*(-dt-last_dt)*(-last_dt));
   newState(2) = x;
   newState(3) = xDot;
 
@@ -67,7 +67,7 @@ Matrix<4,1> calcState(float theta, float last_theta, float llast_theta, float x,
 }
 
 void setup(){  
-  Serial.begin(115200);
+  Serial.begin(57600);
 
   //SETUP ENCODER
   if (!as5600.begin()) {
@@ -126,6 +126,7 @@ void setup(){
 
   delay(3000);
   lastTime = micros()*1e-6;
+  last_dt = 1e-6;
 }
  
 
@@ -139,7 +140,7 @@ void loop(){
   lastTime = time;
   last_dt = dt;
 
-
+  
   if (abs(state(2)) > 0.5*totalWidth - buffer) {
     stepper->forceStop();
     delay(100);
@@ -148,6 +149,7 @@ void loop(){
     delay(5000);
     v = 0;
   }
+  
   
 
   //LQR TO CALC ACCELERATION
@@ -160,7 +162,8 @@ void loop(){
   if (v >= 0) stepper->runForward();
   else stepper->runBackward();
   
-  //Serial.println(state(1), 5);
+  Serial.println(state(1), 5);
+  delay(1);
 
 }
 
