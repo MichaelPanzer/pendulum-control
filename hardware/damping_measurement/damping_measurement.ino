@@ -31,14 +31,14 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define pulleyTeeth 40
 #define beltPitch 2e-3
 
-#define MAX_SPEED 0.7
+#define MAX_SPEED 0.8
 #define MAX_ACCEL 100
 
 BLA::Matrix<4,1> state;
 float time, lastTime, v, dt;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
-BLA::Matrix<1,4> k = {488.03913022,   76.50642164 ,-223.60679775, -152.58917222};
+BLA::Matrix<1,4> k = { 230.08892961 , 73.56678896, -70.71067812, -61.06097946};
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
@@ -83,7 +83,7 @@ void setup(){
   as5600.setSlowFilter(AS5600_SLOW_FILTER_16X);
   as5600.setFastFilterThresh(AS5600_FAST_FILTER_THRESH_SLOW_ONLY);
   // Reset position settings to defaults
-  as5600.setZPosition(as5600.getRawAngle());
+  as5600.setZPosition(as5600.getRawAngle()+4095/2);
   as5600.setMPosition(4095);
   as5600.setMaxAngle(4095);
 
@@ -91,7 +91,7 @@ void setup(){
   SERIAL_PORT.begin(115200);
   driver.begin();
   driver.toff(5);
-  driver.rms_current(2000);
+  driver.rms_current(2000); // Set motor current to 1200 mA RMS (adjust to your motor spec)
   if (microstep==1) driver.microsteps(0);//full step mode
   else driver.microsteps(microstep);
   Serial.println(driver.microsteps());
@@ -104,7 +104,7 @@ void setup(){
   // HOMING
   pinMode(limSw, INPUT_PULLUP);  
   stepper->setSpeedInHz(toSteps(0.1));   
-  stepper->setAcceleration(100000);
+  stepper->setAcceleration(toSteps(MAX_ACCEL));
   stepper->runForward();
   while(digitalRead(limSw)){
     //Serial.println("homing");
@@ -121,41 +121,19 @@ void setup(){
   stepper->setCurrentPosition(0);
   Serial.println("homed");
 
-  state = {as5600.getAngle()*2*PI/4095., 0, 0, 0};
 
   delay(3000);
-  lastTime = micros()*1e-6;
 }
  
 
 void loop(){  
   time = micros()*1e-6;
-  dt = time-lastTime;
   
-  state = calcState((as5600.getAngle()) * 2*PI / 4095.0, toDistance(stepper->getCurrentPosition())/64, v, state, dt);
-  lastTime = time;
-  if (abs(state(2)) > 0.5*totalWidth - buffer) {
-    stepper->forceStop();
-    delay(100);
-    stepper->setSpeedInHz(abs(toSteps(0.2)));
-    stepper->moveTo(0);
-    delay(5000);
-    v = 0;
-  }
-  
-
-  //LQR TO CALC ACCELERATION
-  v += (dt*(k * (state-fpUp))(0));
-  if(v>MAX_SPEED) v=MAX_SPEED;
-  else if (v<-MAX_SPEED) v = -MAX_SPEED;
-  
-  //APPLY ACCELERATION;
-  stepper->setSpeedInHz(abs(toSteps(v)));
-
-  if (v >= 0) stepper->runForward();
-  else stepper->runBackward();
-  
-  Serial.println(state);
+  Serial.print("(");
+  Serial.print(time, 6);
+  Serial.print(", ");
+  Serial.print((as5600.getAngle()* 2*PI / 4095.0)-PI, 6);
+  Serial.println("),");
 
 }
 

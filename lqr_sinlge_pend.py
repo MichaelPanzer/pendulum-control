@@ -17,8 +17,16 @@ def inter(x, xp, fp):
     f0, f1 = fp
     return (x-x0)*(f1-f0)/(x1-x0) + f0
 
-# Bob mass (kg), pendulum length (m), acceleration due to gravity (m.s-2).
-mass, len, grav, c = 120e-3, 400e-3, 9.81, 0.01
+# Bob m_bob (kg), pendulum length (m), acceleration due to gity (m.s-2).
+g = 9.81
+
+m_bob = 32e-3
+m_shaft = 48e-3
+m_rod = 30e-3
+
+r_shaft = 8e-3/2
+len = 315e-3
+c = 0.001
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
 th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
@@ -30,20 +38,21 @@ fps = 45 #fps
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
-q = np.diag([100, 30, 500, 10])
+q = np.diag([10000, 40, 5000, 5]) #th, thdot, x, xdot
 
 #actuation cost
-r = np.array([[0.01]])
+r = np.array([[0.1]])
 
-def jac(y, g=grav, l=len, m=mass):
+def jac(y, l=len):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
     th, th_dot, x, x_dot = y
+    denom = 12*len**2*m_bob + 7*len**2*m_rod + 6*m_shaft*r_shaft**2
     return (np.array([[0, 1, 0, 0],
-                     [-(g*np.cos(th))/l, -c/(m*(l**2)), 0, 0],
+                     [-(12*g*len*m_bob*np.cos(th) + 6*g*len*m_rod*np.cos(th))/denom, -12*c/denom, 0, 0],
                      [0, 0, 0, 1],
                      [0, 0, 0, 0]]),
 
-             np.array([[0, -np.cos(th)/l, 0, 1]]).T)
+             np.array([[0, -(12*m_bob+6*m_rod)*len*np.cos(th)/denom, 0, 1]]).T)
 
 a_up , b_up = jac(fp_up)
 
@@ -86,18 +95,23 @@ def normalize(y):
     return y
 
 
-def pendulum(t, y, l=len, g=grav, m=mass, K=k):
+def pendulum(t, y, K=k, stab=True):
     """returns the full nonlinear state space derivative"""
     y = normalize(y)
     th, th_dot, x, x_dot = y
 
-    if np.abs(th-np.pi) < np.radians(50):
-        u = stabilize(t, y, K, 100e-3)
-    else: 
-        u = erect(t, y, l, g)
+    denom = 12*len**2*m_bob + 7*len**2*m_rod + 6*m_shaft*r_shaft**2
 
-    x_ddot = u[0]
-    th_ddot = -(x_ddot*np.cos(th) + g*np.sin(th))/l - c*th_dot/(m*(l**2))
+    x_ddot=0
+    if stab:
+        if np.abs(th-np.pi) < np.radians(50):
+            u = stabilize(t, y, K, 100e-3)
+        else: 
+            u = erect(t, y, len, g)
+        x_ddot = u[0]
+
+
+    th_ddot = -(12*c*th_dot + 12*g*len*m_bob*np.sin(th) + 6*g*len*m_rod*np.sin(th) + 12*len*m_bob*np.cos(th)*x_ddot + 6*len*m_rod*np.cos(th)*x_ddot)/denom 
 
     return np.array([th_dot, th_ddot, x_dot, x_ddot])
 
