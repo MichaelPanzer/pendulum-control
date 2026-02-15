@@ -25,14 +25,14 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define totalWidth 0.556
 #define buffer 0.030
 
-#define microstep 8
+#define microstep 16
 
-#define stepsPerRevolution 200*microstep
-#define pulleyTeeth 40
+#define stepsPerRevolution (200*microstep)
+#define pulleyTeeth 60
 #define beltPitch 2e-3
 
-#define MAX_SPEED 0.7
-#define MAX_ACCEL 100
+#define MAX_SPEED 1.0
+#define MAX_ACCEL 100000
 
 BLA::Matrix<4,1> state;
 float time, lastTime, v, dt;
@@ -43,22 +43,23 @@ BLA::Matrix<1,4> k = {488.03913022,   76.50642164 ,-223.60679775, -152.58917222}
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 
+float theta;
+float llast_theta;
+float last_dt;
 
 int toSteps(float x){
   return stepsPerRevolution*x/(pulleyTeeth*beltPitch);
 }
 
-float toDistance(float steps){
+float toDistance(int steps){
   return pulleyTeeth*beltPitch*steps/stepsPerRevolution;
 }
 
-Matrix<4,1> calcState(float theta, float x, float xDot, BLA::Matrix<4,1> state, float dt){
+Matrix<4,1> calcState(float theta, float last_theta, float llast_theta, float x, float xDot, float dt, float last_dt){
   BLA::Matrix<4,1> newState;
-  float dTheta = (theta - state(0));
-
-
+  //float dTheta = (theta - last_theta);
   newState(0) = theta;
-  newState(1) =  dTheta / dt;
+  newState(1) =  ((-dt-last_dt)*(theta-last_theta) - (-dt)*(theta-llast_theta))/((-dt)*(-dt-last_dt)*(-last_dt));
   newState(2) = x;
   newState(3) = xDot;
 
@@ -104,7 +105,7 @@ void setup(){
   // HOMING
   pinMode(limSw, INPUT_PULLUP);  
   stepper->setSpeedInHz(toSteps(0.1));   
-  stepper->setAcceleration(100000);
+  stepper->setAcceleration(MAX_ACCEL);
   stepper->runForward();
   while(digitalRead(limSw)){
     //Serial.println("homing");
@@ -113,7 +114,7 @@ void setup(){
   delay(200);
 
   stepper->setCurrentPosition(0);
-  stepper->moveTo(toSteps(-totalWidth / 2.0));
+  stepper->moveTo(toSteps(-0.5*totalWidth - buffer));
   while (stepper->isRunning()) {
     // wait
   }
@@ -131,9 +132,14 @@ void setup(){
 void loop(){  
   time = micros()*1e-6;
   dt = time-lastTime;
-  
-  state = calcState((as5600.getAngle()) * 2*PI / 4095.0, toDistance(stepper->getCurrentPosition())/64, v, state, dt);
+  theta = as5600.getAngle() * 2*PI / 4095.0;
+
+  state = calcState(theta, state(0), llast_theta, toDistance(stepper->getCurrentPosition()), v, dt, last_dt);
+  llast_theta = state(0);
   lastTime = time;
+  last_dt = dt;
+
+
   if (abs(state(2)) > 0.5*totalWidth - buffer) {
     stepper->forceStop();
     delay(100);
@@ -151,11 +157,10 @@ void loop(){
   
   //APPLY ACCELERATION;
   stepper->setSpeedInHz(abs(toSteps(v)));
-
   if (v >= 0) stepper->runForward();
   else stepper->runBackward();
   
-  Serial.println(state);
+  //Serial.println(state(1), 5);
 
 }
 
