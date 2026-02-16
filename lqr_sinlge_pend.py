@@ -38,7 +38,7 @@ fps = 45 #fps
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
-q = np.diag([1000, 50, 500, 5]) #th, thdot, x, xdot
+q = np.diag([1000, 200, 100, 10]) #th, thdot, x, xdot
 
 #actuation cost
 r = np.array([[0.5]])

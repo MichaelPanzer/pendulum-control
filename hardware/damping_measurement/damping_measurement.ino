@@ -25,10 +25,10 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define totalWidth 0.556
 #define buffer 0.030
 
-#define microstep 8
+#define microstep 8.
 
-#define stepsPerRevolution 200*microstep
-#define pulleyTeeth 40
+#define stepsPerRevolution (200.*microstep)
+#define pulleyTeeth 40.
 #define beltPitch 2e-3
 
 #define MAX_SPEED 0.8
