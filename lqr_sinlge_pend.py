@@ -41,7 +41,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 q = np.diag([1000, 200, 100, 10]) #th, thdot, x, xdot
 
 #actuation cost
-r = np.array([[0.5]])
+r = np.array([[1]])
 
 def jac(y, l=len):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
@@ -164,7 +164,11 @@ ani = animation.FuncAnimation(fig, animate, frames=nframes, repeat=False, interv
 plt.show()
 
 plt.plot(time_tree.data, states[0], 'b', label='θ')#theta position
-plt.plot(time_tree.data, states[3], 'r', label='v')#x position 
+plt.plot(time_tree.data, states[1], 'r', label='θ_dot')#theta_dot position
+plt.plot(time_tree.data, [stabilize(t[0], y, k, 100e-3) for t, y in zip(time_tree.data, states.T)], 'g', label='θ_ddot')#theta position
+
+
+#plt.plot(time_tree.data, states[3], 'r', label='v')#x position 
 plt.legend()
 
 plt.show()

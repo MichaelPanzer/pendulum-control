@@ -31,17 +31,17 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define pulleyTeeth 60.0
 #define beltPitch 2e-3
 
-#define MAX_SPEED 1.0
-#define MAX_ACCEL 50000
+#define MAX_SPEED 1.5
+#define MAX_ACCEL 40000
 
-#define ALPHA 0.1
+#define ALPHA 0.05
 
 BLA::Matrix<4,1> state;
-float time, lastTime, v, dt;
+float time, lastTime, v, dt, x;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 //BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
-BLA::Matrix<1,4> k = {107.34970875 , 27.52996713, -14.14213562, -17.87017087};
+BLA::Matrix<1,4> k = {81.56090579 , 20.05303844, -10.   ,      -12.75484345};
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
@@ -59,7 +59,7 @@ float toDistance(int steps){
 }
 
 float der2(float th, float lth, float llth, float dt, float ldt){
-  return (sq(dt)*(llth-lth) + 2.*dt*ldt*(th-lth) + sq(ldt)*(th-lth)) / (dt*ldt*(dt*ldt));
+  return (sq(dt)*(llth-lth) + 2.*dt*ldt*(th-lth) + sq(ldt)*(th-lth)) / (dt*ldt*(dt+ldt));
 }
 
 void setup(){  
@@ -71,6 +71,7 @@ void setup(){
     while (1)
     delay(10);
   }
+
   Serial.println("AS5600 found!");
   as5600.enableWatchdog(false);
   as5600.setPowerMode(AS5600_POWER_MODE_NOM);
@@ -124,7 +125,7 @@ void setup(){
   lastTime = micros()*1e-6;
   last_dt = 1e-6;
 
-  theta = as5600.getAngle() * 2.0*PI/4095.0;
+  theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
   state(0) = theta;
   llast_theta = theta;
 }
@@ -134,11 +135,13 @@ void loop(){
   time = micros()*1e-6;
   dt = time-lastTime;
 
-  theta = as5600.getAngle() * 2.0*PI/4095.0;
+  theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
   state(1) = ALPHA*der2(theta, state(0), llast_theta, dt, last_dt) + (1-ALPHA)*state(1);
   
-  state(2) = toDistance(stepper->getCurrentPosition());
-  state(3) = toDistance(stepper->getSpeedInMilliHz()*1e+3);
+  Serial.println(1/(float)stepper->getCurrentSpeedInUs());
+  x = toDistance(stepper->getCurrentPosition());
+  state(3) = toDistance(stepper->getCurrentSpeedInMilliHz());
+  state(2) = x;
 
   llast_theta = state(0);
   state(0) = theta;
@@ -156,7 +159,7 @@ void loop(){
   }
   
   //LQR TO CALC ACCELERATION
-  v += (dt*(k * (state-fpUp))(0));
+  v += dt* (k * (fpUp-state))(0);
   if(v>MAX_SPEED) v=MAX_SPEED;
   else if (v<-MAX_SPEED) v = -MAX_SPEED;
   
@@ -164,8 +167,6 @@ void loop(){
   stepper->setSpeedInHz(abs(toSteps(v)));
   if (v >= 0) stepper->runForward();
   else stepper->runBackward();
-  
-  Serial.println(state(1), 5);
 
 }
 
