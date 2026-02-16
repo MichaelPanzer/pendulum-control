@@ -20,13 +20,13 @@ def inter(x, xp, fp):
 # Bob m_bob (kg), pendulum length (m), acceleration due to gity (m.s-2).
 g = 9.81
 
-m_bob = 32e-3
+m_bob = 32e-3 - 10e-3
 m_shaft = 48e-3
 m_rod = 30e-3
 
 r_shaft = 8e-3/2
-len = 315e-3
-c = 0.001
+len = 320e-3
+c = 0.0001
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
 th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
@@ -38,10 +38,13 @@ fps = 45 #fps
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
-q = np.diag([1000, 200, 100, 10]) #th, thdot, x, xdot
+#q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
+q = np.diag([150, 70, 60, 10]) #th, thdot, x, xdot
+
+
 
 #actuation cost
-r = np.array([[1]])
+r = np.array([[0.05]])
 
 def jac(y, l=len):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
@@ -61,7 +64,7 @@ print(np.linalg.matrix_rank(control.ctrb(a_up, b_up)))#rank of controllability m
 p = sp.linalg.solve_continuous_are(a_up, b_up, q, r, s=fp_up[:, None])
 k = np.linalg.inv(r).dot(b_up.T).dot(p)
 
-print(k)
+print(', '.join(str(val) for val in k[0]))
 
 print(np.linalg.eigvals(a_up - b_up*k))
 
@@ -116,7 +119,7 @@ def pendulum(t, y, K=k, stab=True):
     return np.array([th_dot, th_ddot, x_dot, x_ddot])
 
 
-y_init = np.array([np.pi*0.85, th_dot0, x0, x_dot0])
+y_init = np.array([np.pi*0.9, th_dot0, x0, x_dot0])
 sol = sp.integrate.solve_ivp(fun=pendulum, t_span=[0.0, duration], y0=y_init, max_step=0.01)
 
 

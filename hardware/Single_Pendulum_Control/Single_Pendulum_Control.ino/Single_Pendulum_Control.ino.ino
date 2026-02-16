@@ -31,18 +31,22 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define pulleyTeeth 60.0
 #define beltPitch 2e-3
 
-#define MAX_SPEED 1.5
-#define MAX_ACCEL 40000
+#define MAX_SPEED 1.4
+#define MAX_ACCEL 90000
 
-#define ALPHA 0.05
+#define FILTER_CONST 1.5 //min value of 1, Higher value reduces high-speed filter %
+#define FILTER_LIMIT 0.8 //from 0 to 1, Baseline filter % at low speed
+#define FILTER_FLOOR 0.05 //from 0 to 1, Baseline filter % at low speed
+
 
 BLA::Matrix<4,1> state;
-float time, lastTime, v, dt, x;
+float time, lastTime, v, dt, x, a;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 //BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
-BLA::Matrix<1,4> k = {81.56090579 , 20.05303844, -10.   ,      -12.75484345};
-
+BLA::Matrix<1,4> k = {
+154.63675834318474, 53.99985189609788, -34.641016151377016, -43.203770817416256
+};
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 
@@ -80,7 +84,17 @@ void setup(){
   // setup filters
   as5600.setSlowFilter(AS5600_SLOW_FILTER_16X);
   as5600.setFastFilterThresh(AS5600_FAST_FILTER_THRESH_SLOW_ONLY);
-  // Reset position settings to defaults
+
+  //Wait for pendulum to stop moving
+  int llastPos = as5600.getRawAngle();
+  int lastPos = llastPos+1;
+  delay(50);
+  while(as5600.getRawAngle() != lastPos || llastPos != lastPos){
+    llastPos = lastPos;
+    lastPos = as5600.getRawAngle();
+    delay(500);
+  }
+  // Reset encoder position to 0
   as5600.setZPosition(as5600.getRawAngle());
   as5600.setMPosition(4095);
   as5600.setMaxAngle(4095);
@@ -111,7 +125,7 @@ void setup(){
   delay(200);
 
   stepper->setCurrentPosition(0);
-  stepper->moveTo(toSteps(-0.5*totalWidth - buffer));
+  stepper->moveTo(toSteps(-0.5*(totalWidth)));
   while (stepper->isRunning()) {
     // wait
   }
@@ -119,15 +133,14 @@ void setup(){
   stepper->setCurrentPosition(0);
   Serial.println("homed");
 
-  state = {as5600.getAngle()*2*PI/4095., 0, 0, 0};
 
   delay(3000);
   lastTime = micros()*1e-6;
   last_dt = 1e-6;
 
-  theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
-  state(0) = theta;
-  llast_theta = theta;
+  state = {(4095-as5600.getAngle()) * 2.0*PI/4095.0, 0, 0, 0};
+  theta = state(0);
+  llast_theta = state(0);
 }
  
 
@@ -136,20 +149,19 @@ void loop(){
   dt = time-lastTime;
 
   theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
-  state(1) = ALPHA*der2(theta, state(0), llast_theta, dt, last_dt) + (1-ALPHA)*state(1);
+  a = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
+  state(1) = (1-a)*der2(theta, state(0), llast_theta, dt, last_dt) + a*state(1);
   
-  Serial.println(1/(float)stepper->getCurrentSpeedInUs());
-  x = toDistance(stepper->getCurrentPosition());
-  state(3) = toDistance(stepper->getCurrentSpeedInMilliHz());
-  state(2) = x;
+  state(3) = toDistance(1000000/stepper->getCurrentSpeedInUs());
+  state(2) = toDistance(stepper->getCurrentPosition());
 
   llast_theta = state(0);
   state(0) = theta;
 
   lastTime = time;
   last_dt = dt;
-
-  if (abs(state(2)) > 0.5*totalWidth - buffer) {
+  
+  if (abs(state(2))+buffer > 0.5*totalWidth) {
     stepper->forceStop();
     delay(100);
     stepper->setSpeedInHz(abs(toSteps(0.2)));
@@ -157,7 +169,7 @@ void loop(){
     delay(5000);
     v = 0;
   }
-  
+
   //LQR TO CALC ACCELERATION
   v += dt* (k * (fpUp-state))(0);
   if(v>MAX_SPEED) v=MAX_SPEED;
@@ -167,6 +179,10 @@ void loop(){
   stepper->setSpeedInHz(abs(toSteps(v)));
   if (v >= 0) stepper->runForward();
   else stepper->runBackward();
+
+  //Serial.print(a, 5);
+  //Serial.print(", ");
+  //Serial.println(state(1), 5);
 
 }
 
