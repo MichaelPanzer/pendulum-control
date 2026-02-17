@@ -28,15 +28,15 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define microstep 8
 
 #define stepsPerRevolution (200*(float)microstep)
-#define pulleyTeeth 60.0
+#define pulleyTeeth 40.0
 #define beltPitch 2e-3
 
-#define MAX_SPEED 1.4
-#define MAX_ACCEL 90000
+#define MAX_SPEED 1.6
+#define MAX_ACCEL 130000
 
-#define FILTER_CONST 1.5 //min value of 1, Higher value reduces high-speed filter %
-#define FILTER_LIMIT 0.8 //from 0 to 1, Baseline filter % at low speed
-#define FILTER_FLOOR 0.05 //from 0 to 1, Baseline filter % at low speed
+#define FILTER_CONST 2.1 //1.5 //min value of 1, Higher value reduces high-speed filter %
+#define FILTER_LIMIT 0.6 //from 0 to 1, Baseline filter % at low speed
+#define FILTER_FLOOR 0.03 //from 0 to 1, Minimum filter % at high speed
 
 
 BLA::Matrix<4,1> state;
@@ -45,8 +45,9 @@ float time, lastTime, v, dt, x, a;
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 //BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
 BLA::Matrix<1,4> k = {
-154.63675834318474, 53.99985189609788, -34.641016151377016, -43.203770817416256
+194.4678322232743, 44.17976375881673, -65.82805886043735, -53.28508193731017
 };
+
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 

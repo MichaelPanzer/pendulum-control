@@ -83,9 +83,9 @@ void setup(){
   as5600.setSlowFilter(AS5600_SLOW_FILTER_16X);
   as5600.setFastFilterThresh(AS5600_FAST_FILTER_THRESH_SLOW_ONLY);
   // Reset position settings to defaults
-  as5600.setZPosition(as5600.getRawAngle());
-  as5600.setMPosition(0);
-  as5600.setMaxAngle(4096/4-1);
+  as5600.setZPosition(as5600.getRawAngle() - 4096/2);
+  as5600.setMPosition(4096/2);
+  as5600.setMaxAngle(4095);
 
   delay(5000);
 }
@@ -97,7 +97,7 @@ void loop(){
   Serial.print("(");
   Serial.print(time, 6);
   Serial.print(", ");
-  Serial.print(as5600.getAngle());
+  Serial.print((as5600.getAngle()*2*PI/4096.)-PI, 7);
   Serial.println("),");
 
 }

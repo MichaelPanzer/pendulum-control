@@ -20,13 +20,13 @@ def inter(x, xp, fp):
 # Bob m_bob (kg), pendulum length (m), acceleration due to gity (m.s-2).
 g = 9.81
 
-m_bob = 32e-3 - 10e-3
+m_bob = 22e-3#10e-3
 m_shaft = 48e-3
-m_rod = 30e-3
+m_rod = 31e-3#25e-3
 
 r_shaft = 8e-3/2
-len = 320e-3
-c = 0.0001
+len = 200e-3 # 320e-3
+c = 0.0005
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
 th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
@@ -39,12 +39,12 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
 #q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
-q = np.diag([150, 70, 60, 10]) #th, thdot, x, xdot
+q = np.diag([200, 150, 575, 12]) #th, thdot, x, xdot
 
 
 
 #actuation cost
-r = np.array([[0.05]])
+r = np.array([[0.15]])
 
 def jac(y, l=len):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
@@ -101,7 +101,9 @@ def normalize(y):
 def pendulum(t, y, K=k, stab=True):
     """returns the full nonlinear state space derivative"""
     y = normalize(y)
-    th, th_dot, x, x_dot = y
+    th, th_dot, x, x_dot, dist = y
+
+    y= np.array(y[:4])
 
     denom = 12*len**2*m_bob + 7*len**2*m_rod + 6*m_shaft*r_shaft**2
 
@@ -116,10 +118,10 @@ def pendulum(t, y, K=k, stab=True):
 
     th_ddot = -(12*c*th_dot + 12*g*len*m_bob*np.sin(th) + 6*g*len*m_rod*np.sin(th) + 12*len*m_bob*np.cos(th)*x_ddot + 6*len*m_rod*np.cos(th)*x_ddot)/denom 
 
-    return np.array([th_dot, th_ddot, x_dot, x_ddot])
+    return np.array([th_dot, th_ddot, x_dot, x_ddot, (np.random.random()-0.5)*20])
 
 
-y_init = np.array([np.pi*0.9, th_dot0, x0, x_dot0])
+y_init = np.array([np.pi*0.9, th_dot0, x0, x_dot0, 0])
 sol = sp.integrate.solve_ivp(fun=pendulum, t_span=[0.0, duration], y0=y_init, max_step=0.01)
 
 
@@ -138,7 +140,7 @@ ax.set_xlim(-len*w, len*w)
 ax.set_ylim(-len*h, len*h)
 
 def get_r(y):
-    th, th_dot, x, x_dot= y
+    th, th_dot, x, x_dot, d= y
     """Return the (x, y) coordinates of the bob from the state variables"""
     return x, len*np.sin(th) + x, -len*np.cos(th)
 
@@ -166,9 +168,8 @@ times = np.linspace(0,duration, num=nframes)
 ani = animation.FuncAnimation(fig, animate, frames=nframes, repeat=False, interval=1000/fps, fargs = (times,))
 plt.show()
 
-plt.plot(time_tree.data, states[0], 'b', label='θ')#theta position
+plt.plot(time_tree.data, states[4], 'b', label='θ')#theta position
 plt.plot(time_tree.data, states[1], 'r', label='θ_dot')#theta_dot position
-plt.plot(time_tree.data, [stabilize(t[0], y, k, 100e-3) for t, y in zip(time_tree.data, states.T)], 'g', label='θ_ddot')#theta position
 
 
 #plt.plot(time_tree.data, states[3], 'r', label='v')#x position 
