@@ -34,9 +34,9 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define MAX_SPEED 1.6
 #define MAX_ACCEL 130000
 
-#define FILTER_CONST 2.1 //1.5 //min value of 1, Higher value reduces high-speed filter %
-#define FILTER_LIMIT 0.6 //from 0 to 1, Baseline filter % at low speed
-#define FILTER_FLOOR 0.03 //from 0 to 1, Minimum filter % at high speed
+#define FILTER_CONST 1.8 //1.5 //min value of 1, Higher value reduces high-speed filter %
+#define FILTER_LIMIT 0.90 //from 0 to 1, Baseline filter % at low speed
+#define FILTER_FLOOR 0.55 //from 0 to 1, Minimum filter % at high speed
 
 
 BLA::Matrix<4,1> state;
@@ -68,7 +68,7 @@ float der2(float th, float lth, float llth, float dt, float ldt){
 }
 
 void setup(){  
-  Serial.begin(57600);
+  Serial.begin(115200);
 
   //SETUP ENCODER
   if (!as5600.begin()) {
@@ -151,7 +151,8 @@ void loop(){
 
   theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
   a = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
-  state(1) = (1-a)*der2(theta, state(0), llast_theta, dt, last_dt) + a*state(1);
+  float d = der2(theta, state(0), llast_theta, dt, last_dt);
+  state(1) = (1-a)*d + a*state(1);
   
   state(3) = toDistance(1000000/stepper->getCurrentSpeedInUs());
   state(2) = toDistance(stepper->getCurrentPosition());
@@ -162,6 +163,7 @@ void loop(){
   lastTime = time;
   last_dt = dt;
   
+  
   if (abs(state(2))+buffer > 0.5*totalWidth) {
     stepper->forceStop();
     delay(100);
@@ -170,6 +172,7 @@ void loop(){
     delay(5000);
     v = 0;
   }
+  
 
   //LQR TO CALC ACCELERATION
   v += dt* (k * (fpUp-state))(0);
@@ -181,10 +184,13 @@ void loop(){
   if (v >= 0) stepper->runForward();
   else stepper->runBackward();
 
-  //Serial.print(a, 5);
-  //Serial.print(", ");
-  //Serial.println(state(1), 5);
-
+  /*
+  Serial.print(a, 5);
+  Serial.print(", ");
+  Serial.print(d, 5);
+  Serial.print(", ");
+  Serial.println(state(1), 5);
+  */
 }
 
 
