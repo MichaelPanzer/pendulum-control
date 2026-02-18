@@ -39,7 +39,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
 #q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
-q = np.diag([200, 125, 575, 12]) #th, thdot, x, xdot
+q = np.diag([200, 130, 450, 40]) #th, thdot, x, xdot
 
 
 

@@ -31,7 +31,7 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define pulleyTeeth 40.0
 #define beltPitch 2e-3
 
-#define MAX_SPEED 1.6
+#define MAX_SPEED 1.4
 #define MAX_ACCEL 130000
 
 #define FILTER_CONST 1.8 //1.5 //min value of 1, Higher value reduces high-speed filter %
@@ -45,7 +45,7 @@ float time, lastTime, v, dt, x, a;
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 //BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
 BLA::Matrix<1,4> k = {
-180.17666490589082, 40.72958209175653, -61.91391873669039, -49.948372792073776
+181.4979469962424, 41.27060085617614, -54.7722557505162, -49.17024780213365
 };
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
@@ -150,10 +150,13 @@ void setup(){
 void loop(){  
   time = micros()*1e-6;
   dt = time-lastTime;
+  //This loop is to handle errors in I2C
   int a = as5600.getAngle();
-  while(a==4095)
-    theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
+  while(a==4095){
     a = as5600.getAngle();
+    Serial.println(time);
+  }
+  theta = (4095-a) * 2.0*PI/4095.0;
 
   a = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
   float d = der2(theta, state(0), llast_theta, dt, last_dt);
@@ -169,7 +172,7 @@ void loop(){
   last_dt = dt;
 
   if (abs(state(2))+buffer > 0.5*totalWidth || theta<0.6*PI || theta>1.6*PI){
-    Serial.println(theta);
+    Serial.println(time);
     Serial.println(state(0));
     stepper->forceStop();
     delay(100);
