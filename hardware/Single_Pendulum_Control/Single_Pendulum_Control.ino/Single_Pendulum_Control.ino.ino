@@ -45,7 +45,7 @@ float time, lastTime, v, dt, x, a;
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 //BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
 BLA::Matrix<1,4> k = {
-194.4678322232743, 44.17976375881673, -65.82805886043735, -53.28508193731017
+180.17666490589082, 40.72958209175653, -61.91391873669039, -49.948372792073776
 };
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
@@ -78,7 +78,6 @@ void setup(){
   }
 
   Serial.println("AS5600 found!");
-  as5600.enableWatchdog(false);
   as5600.setPowerMode(AS5600_POWER_MODE_NOM);
   as5600.setHysteresis(AS5600_HYSTERESIS_OFF);
   as5600.setOutputStage(AS5600_OUTPUT_STAGE_ANALOG_FULL);
@@ -94,6 +93,9 @@ void setup(){
     llastPos = lastPos;
     lastPos = as5600.getRawAngle();
     delay(500);
+    Serial.print("Waiting to stabilize, Angle = ");
+    Serial.println(lastPos);
+
   }
   // Reset encoder position to 0
   as5600.setZPosition(as5600.getRawAngle());
@@ -139,7 +141,7 @@ void setup(){
   lastTime = micros()*1e-6;
   last_dt = 1e-6;
 
-  state = {(4095-as5600.getAngle()) * 2.0*PI/4095.0, 0, 0, 0};
+  state = {(4095-as5600.getAngle()) * 2.0*PI/4095.0, 0., 0., 0.};
   theta = state(0);
   llast_theta = state(0);
 }
@@ -148,8 +150,11 @@ void setup(){
 void loop(){  
   time = micros()*1e-6;
   dt = time-lastTime;
+  int a = as5600.getAngle();
+  while(a==4095)
+    theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
+    a = as5600.getAngle();
 
-  theta = (4095-as5600.getAngle()) * 2.0*PI/4095.0;
   a = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
   float d = der2(theta, state(0), llast_theta, dt, last_dt);
   state(1) = (1-a)*d + a*state(1);
@@ -162,15 +167,17 @@ void loop(){
 
   lastTime = time;
   last_dt = dt;
-  
-  
-  if (abs(state(2))+buffer > 0.5*totalWidth) {
+
+  if (abs(state(2))+buffer > 0.5*totalWidth || theta<0.6*PI || theta>1.6*PI){
+    Serial.println(theta);
+    Serial.println(state(0));
     stepper->forceStop();
     delay(100);
     stepper->setSpeedInHz(abs(toSteps(0.2)));
     stepper->moveTo(0);
     delay(5000);
     v = 0;
+    state(1) = 0;
   }
   
 
@@ -191,6 +198,8 @@ void loop(){
   Serial.print(", ");
   Serial.println(state(1), 5);
   */
+  //delay(20);
+
 }
 
 
