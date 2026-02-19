@@ -25,7 +25,7 @@ m_shaft = 48e-3
 m_rod = 31e-3#25e-3
 
 r_shaft = 8e-3/2
-len = 200e-3 # 320e-3
+len = 295e-3 # 320e-3
 c = 0.0005
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
@@ -39,7 +39,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
 #q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
-q = np.diag([200, 130, 450, 40]) #th, thdot, x, xdot
+q = np.diag([150, 110, 550, 40]) #th, thdot, x, xdot
 
 
 
