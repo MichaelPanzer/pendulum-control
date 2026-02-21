@@ -41,7 +41,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 #q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
 q = np.diag([150, 110, 650, 100]) #th, thdot, x, xdot
 
-
+energy_const = (12*len**2*m_bob + 7*len**2*m_rod + 6*m_shaft*r_shaft**2)/(24*g*len*(m_bob+m_rod))
 
 #actuation cost
 r = np.array([[0.17]])
@@ -65,6 +65,7 @@ p = sp.linalg.solve_continuous_are(a_up, b_up, q, r, s=fp_up[:, None])
 k = np.linalg.inv(r).dot(b_up.T).dot(p)
 
 print(', '.join(str(val) for val in k[0]))
+print(f'Energy Const = {energy_const}')
 
 print(np.linalg.eigvals(a_up - b_up*k))
 
@@ -83,7 +84,7 @@ def erect(t, y, l, g):
     v_max = 2
     x_max = 1.3
     a_max = 20
-    energy = -(1 + np.cos(th) - l*th_dot**2/(2*g))
+    energy = -(1 + np.cos(th) - energy_const * th_dot**2)
     if energy<0:
         if (th_dot*np.cos(th)<0 and x_dot<v_max):
             return np.array([a_max])

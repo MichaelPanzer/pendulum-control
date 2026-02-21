@@ -42,6 +42,7 @@ TMC2209Stepper driver(&SERIAL_PORT, 0.11f, 0b00);
 #define G 9.81
 
 #define STAB_LIMIT 0.8 //distance from vertical for lQR control
+#define ENERGY_CONST 0.011372574219845546 //Constant for normalized energy expression
 
 #define HOMING()                                        \
   stepper->setSpeedInHz(toSteps(0.1));                  \
@@ -212,7 +213,7 @@ void loop(){
   last_dt = dt;
 
   //SWING UP
-  if (){ 
+  if (ENERGY_CONST*sq(state(1)) - cos(state(0)) < 1){ 
     Serial.print("ERECTING | Speed = ");
     Serial.print(softSpeedLim(state(2)));
     Serial.print(", x = ");
