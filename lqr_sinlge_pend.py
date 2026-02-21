@@ -39,12 +39,12 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
 #q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
-q = np.diag([150, 110, 550, 40]) #th, thdot, x, xdot
+q = np.diag([150, 110, 650, 100]) #th, thdot, x, xdot
 
 
 
 #actuation cost
-r = np.array([[0.15]])
+r = np.array([[0.17]])
 
 def jac(y, l=len):
     """calculates the jacobian of the state space function to linearize around fixed point (A, B)"""
