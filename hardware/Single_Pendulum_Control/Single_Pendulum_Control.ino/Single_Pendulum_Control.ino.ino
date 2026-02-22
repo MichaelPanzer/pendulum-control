@@ -31,7 +31,7 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define PULLEY_TEETH 40.0
 #define BELT_PITCH 2e-3
 
-#define MAX_SPEED 0.8
+#define MAX_SPEED 0.7
 #define MAX_ACCEL 130000
 
 //Encoder Filter Params
@@ -40,12 +40,12 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define FILTER_FLOOR 0.55 //from 0 to 1, Minimum filter % at high speed
 
 
-#define STAB_LIMIT 0.7 //distance from vertical for lQR control
+#define STAB_LIMIT 0.6 //distance from vertical for lQR control
 #define ENERGY_CONST 0.011372574219845546 //Constant for normalized energy expression
 
 //Soft limit params
-#define SOFT_LIM_START 0.5
-#define SOFT_LIM_END 0.65
+#define SOFT_LIM_START 0.3
+#define SOFT_LIM_END 0.8
 
 #define HOMING()                                        \
   Serial.println("Begin Homing");                       \
@@ -100,17 +100,17 @@ float der2(float th, float lth, float llth, float dt, float ldt){
 }
 
 //This function creates a soft speed limit as the cart approaches movement limits
-float softSpeedLim(float x, float x_dot){
+float softSpeedLim(float x, float x_dot, float start, float end){
   //Checks to make sure that cart is moving towards limit and outside of full speed zone 
   float normX = abs(x) / (0.5*TOTAL_WIDTH - MOVEMENT_BUFFER);
 
   if( (x>0 && x_dot>0) || (x<0 && x_dot<0)){
-    if(normX>SOFT_LIM_END){
+    if(normX>end){
       // Serial.print("   PAST LIMIT   ");
       return 0;
-    } else if(normX>SOFT_LIM_START){ //Apply soft lim function
+    } else if(normX>start){ //Apply soft lim function
       // Serial.print("   LIMIT   ");
-      return MAX_SPEED * (SOFT_LIM_END-normX) / (SOFT_LIM_END-SOFT_LIM_START);
+      return MAX_SPEED * (end-normX) / (end-start);
     }
   }
 
@@ -231,15 +231,19 @@ void loop(){
       Serial.print("ERECTING | x_dot = ");
       Serial.print(state(3));
       Serial.print(", x = ");
-      Serial.println(state(2));
+      Serial.print(state(2));
+      Serial.print(", θ_dot = ");
+      Serial.print(state(1));
+      Serial.print(", θ = ");
+      Serial.print(state(0));
 
       
       if (state(1)*cos(state(0)) < 0){
-        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), 1.0) ));
+        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), 1.0, SOFT_LIM_START, SOFT_LIM_END) ));
         stepper->runForward();
       }
       else {
-        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), -1.0) ));
+        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), -1.0, SOFT_LIM_START, SOFT_LIM_END) ));
         stepper->runBackward();
       }
     }
@@ -248,9 +252,13 @@ void loop(){
       Serial.print("Coast | x_dot = ");
       Serial.print(state(3));
       Serial.print(", x = ");
-      Serial.println(state(2));
+      Serial.print(state(2));
+      Serial.print(", θ_dot = ");
+      Serial.print(state(1));
+      Serial.print(", θ = ");
+      Serial.print(state(0));
       
-      stepper->setSpeedInHz(toSteps(min( softSpeedLim(state(2), state(3)), state(3) ))); //Apply soft limits to slow down as approaching limit
+      stepper->setSpeedInHz(toSteps(min( softSpeedLim(state(2), state(3), SOFT_LIM_START, SOFT_LIM_END), abs(state(3)) ))); //Apply soft limits to slow down as approaching limit
       if(state(3)>0) stepper->runForward();
       else stepper->runBackward();
     }
@@ -258,13 +266,18 @@ void loop(){
   //LQR Control
   else{
     Serial.print("LQR | x_dot = ");
-      Serial.print(state(3));
-      Serial.print(", x = ");
-      Serial.println(state(2));
+    Serial.print(state(3));
+    Serial.print(", x = ");
+    Serial.print(state(2));
+    Serial.print(", θ_dot = ");
+    Serial.print(state(1));
+    Serial.print(", θ = ");
+    Serial.print(state(0));
+
 
     //APPLY ACCELERATION;
     state(3) +=  dt* (k * (fpUp-state))(0);
-    stepper->setSpeedInHz(toSteps( min( softSpeedLim(state(2), state(3)), abs(state(3)) ) ));
+    stepper->setSpeedInHz(toSteps( min( softSpeedLim(state(2), state(3), 0.5,0.8), abs(state(3)) ) ));
 
     if (state(3)>0) stepper->runForward();
     else stepper->runBackward();
