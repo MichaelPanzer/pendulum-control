@@ -31,8 +31,8 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define PULLEY_TEETH 40.0
 #define BELT_PITCH 2e-3
 
-#define MAX_SPEED 0.7
-#define MAX_ACCEL 140000
+#define MAX_SPEED 0.8
+#define MAX_ACCEL 130000
 
 //Encoder Filter Params
 #define FILTER_CONST 1.8 //1.5 //min value of 1, Higher value reduces high-speed filter %
@@ -40,12 +40,12 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define FILTER_FLOOR 0.55 //from 0 to 1, Minimum filter % at high speed
 
 
-#define STAB_LIMIT 0.6 //distance from vertical for lQR control
+#define STAB_LIMIT 0.7 //distance from vertical for lQR control
 #define ENERGY_CONST 0.011372574219845546 //Constant for normalized energy expression
 
 //Soft limit params
-#define SOFT_LIM_START 0.6
-#define SOFT_LIM_END 0.8
+#define SOFT_LIM_START 0.5
+#define SOFT_LIM_END 0.65
 
 #define HOMING()                                        \
   Serial.println("Begin Homing");                       \
@@ -70,10 +70,11 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
   Serial.println("homed");                              \
 
 
-
-
 BLA::Matrix<4,1> state;
-float time, lastTime, v, dt, x, a;
+float time, lastTime, dt;
+float theta;
+float llast_theta;
+float last_dt;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 //BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
@@ -84,9 +85,7 @@ BLA::Matrix<1,4> k = {
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 
-float theta;
-float llast_theta;
-float last_dt;
+
 
 int toSteps(float x){
   return stepsPerRevolution*x/(PULLEY_TEETH*BELT_PITCH);
@@ -100,31 +99,23 @@ float der2(float th, float lth, float llth, float dt, float ldt){
   return (sq(dt)*(llth-lth) + 2.*dt*ldt*(th-lth) + sq(ldt)*(th-lth)) / (dt*ldt*(dt+ldt));
 }
 
-//This function creates a soft speed limit with a high degree monomial function
-
+//This function creates a soft speed limit as the cart approaches movement limits
 float softSpeedLim(float x, float x_dot){
   //Checks to make sure that cart is moving towards limit and outside of full speed zone 
-  float normX = abs(x / (0.5*TOTAL_WIDTH - MOVEMENT_BUFFER));
+  float normX = abs(x) / (0.5*TOTAL_WIDTH - MOVEMENT_BUFFER);
 
-  //Serial.print("normX = ");
-  //Serial.print(normX);
-
-  if(((x>0 && x_dot>0) || (x<0 && x_dot<0)) && (normX>SOFT_LIM_START)){
+  if( (x>0 && x_dot>0) || (x<0 && x_dot<0)){
     if(normX>SOFT_LIM_END){
-      Serial.print("   PAST LIMIT   ");
+      // Serial.print("   PAST LIMIT   ");
       return 0;
-    }
-    else{ //Apply soft lim function
-      float distLeft = 1-SOFT_LIM_START;
-      Serial.print("   LIMIT   ");
-      return MAX_SPEED* (1.0 - distLeft/(SOFT_LIM_END-SOFT_LIM_START) * (1 + (normX-1)/distLeft) );
+    } else if(normX>SOFT_LIM_START){ //Apply soft lim function
+      // Serial.print("   LIMIT   ");
+      return MAX_SPEED * (SOFT_LIM_END-normX) / (SOFT_LIM_END-SOFT_LIM_START);
     }
   }
-  else{
-    Serial.print("   NO LIMIT   ");
-    
-    return MAX_SPEED;
-  }
+
+  // Serial.print("   NO LIMIT   ");
+  return MAX_SPEED;
 }
 
 void setup(){  
@@ -191,7 +182,6 @@ void setup(){
   llast_theta = state(0);
 }
  
-
 void loop(){  
   //Enforce Movement Limits
   if (abs(state(2))+MOVEMENT_BUFFER > 0.5*TOTAL_WIDTH){
@@ -203,7 +193,6 @@ void loop(){
     stepper->setSpeedInHz(abs(toSteps(0.2)));
     stepper->moveTo(0);
     delay(5000);
-    v = 0;
     state(1) = 0;
   }
 
@@ -246,11 +235,11 @@ void loop(){
 
       
       if (state(1)*cos(state(0)) < 0){
-        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), 1) ));
+        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), 1.0) ));
         stepper->runForward();
       }
       else {
-        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), -1) ));
+        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), -1.0) ));
         stepper->runBackward();
       }
     }
@@ -271,15 +260,13 @@ void loop(){
     Serial.print("LQR | x_dot = ");
       Serial.print(state(3));
       Serial.print(", x = ");
-      Serial.print(state(2));
-      Serial.print(", v = ");
-      Serial.println(v);
+      Serial.println(state(2));
 
     //APPLY ACCELERATION;
-    v = state(3) +  dt* (k * (fpUp-state))(0);
-    stepper->setSpeedInHz(toSteps( min(softSpeedLim(x, v), abs(v)) ));
+    state(3) +=  dt* (k * (fpUp-state))(0);
+    stepper->setSpeedInHz(toSteps( min( softSpeedLim(state(2), state(3)), abs(state(3)) ) ));
 
-    if (v>0) stepper->runForward();
+    if (state(3)>0) stepper->runForward();
     else stepper->runBackward();
   }
 }
