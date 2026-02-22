@@ -41,12 +41,12 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define FILTER_FLOOR 0.55 //from 0 to 1, Minimum filter % at high speed
 
 
-#define STAB_LIMIT 0.5 //distance from vertical for lQR control
+#define LQR_MAX_ANGLE 0.5 //distance from vertical for lQR control
 #define ENERGY_CONST 0.010100685652095763 //0.011372574219845546 //Constant for normalized energy expression
 
 //Soft limit params
-#define SOFT_LIM_START 0.5
-#define SOFT_LIM_END 0.8
+#define SOFT_LIM_START 0.2
+#define SOFT_LIM_END 0.5
 
 #define HOMING()                                        \
   Serial.println("Begin Homing");                       \
@@ -229,7 +229,7 @@ void loop(){
   last_dt = dt;
 
   //SWING UP
-  if(theta<PI-STAB_LIMIT || theta>PI+STAB_LIMIT){
+  if(theta<PI-LQR_MAX_ANGLE || theta>PI+LQR_MAX_ANGLE){
     if (ENERGY_CONST*sq(state(1)) - cos(state(0)) < 1){ //Normalized energy 
       Serial.print("ERECTING | ");
       
@@ -257,8 +257,8 @@ void loop(){
 
     //APPLY ACCELERATION;
     v += dt* (k * (fpUp-state))(0);
-    if (v >= 0)    v = softSpeedLim(state(2), v, 0.5, 0.8);
-    else    v = -softSpeedLim(state(2), v, 0.5, 0.8);
+    if (v > MAX_SPEED)    v = MAX_SPEED;
+    else if(v < -MAX_SPEED)   v = -MAX_SPEED;
 
     //APPLY ACCELERATION;
     stepper->setSpeedInHz(abs(toSteps(v)));
