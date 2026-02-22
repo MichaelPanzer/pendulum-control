@@ -25,7 +25,7 @@ m_shaft = 48e-3
 m_rod = 31e-3#25e-3
 
 r_shaft = 8e-3/2
-len = 295e-3 # 320e-3
+len = 262e-3 # 320e-3
 c = 0.0005
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)

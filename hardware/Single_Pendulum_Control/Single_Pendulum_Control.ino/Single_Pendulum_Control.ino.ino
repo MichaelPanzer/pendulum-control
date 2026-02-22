@@ -31,8 +31,9 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define PULLEY_TEETH 40.0
 #define BELT_PITCH 2e-3
 
+#define MAX_SPEED_LQR 0.9
 #define MAX_SPEED 0.7
-#define MAX_ACCEL 130000
+#define MAX_ACCEL 90000
 
 //Encoder Filter Params
 #define FILTER_CONST 1.8 //1.5 //min value of 1, Higher value reduces high-speed filter %
@@ -40,11 +41,11 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define FILTER_FLOOR 0.55 //from 0 to 1, Minimum filter % at high speed
 
 
-#define STAB_LIMIT 0.6 //distance from vertical for lQR control
-#define ENERGY_CONST 0.011372574219845546 //Constant for normalized energy expression
+#define STAB_LIMIT 0.5 //distance from vertical for lQR control
+#define ENERGY_CONST 0.010100685652095763 //0.011372574219845546 //Constant for normalized energy expression
 
 //Soft limit params
-#define SOFT_LIM_START 0.3
+#define SOFT_LIM_START 0.5
 #define SOFT_LIM_END 0.8
 
 #define HOMING()                                        \
@@ -75,11 +76,13 @@ float time, lastTime, dt;
 float theta;
 float llast_theta;
 float last_dt;
+float v;
+float a;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
-//BLA::Matrix<1,4> k = {107.75202347,  21.42132424, -31.6227766,  -26.11407771};
 BLA::Matrix<1,4> k = {
-203.67626620582544, 46.612113778021914, -61.834694240084225, -57.14166434532145
+//190.58346292018933, 45.949676015077905, -60.55300708194896, -52.506193013906625
+198.26643771785666, 43.94529586609255, -61.8346942400838, -56.5417634050763
 };
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
@@ -228,15 +231,7 @@ void loop(){
   //SWING UP
   if(theta<PI-STAB_LIMIT || theta>PI+STAB_LIMIT){
     if (ENERGY_CONST*sq(state(1)) - cos(state(0)) < 1){ //Normalized energy 
-      Serial.print("ERECTING | x_dot = ");
-      Serial.print(state(3));
-      Serial.print(", x = ");
-      Serial.print(state(2));
-      Serial.print(", θ_dot = ");
-      Serial.print(state(1));
-      Serial.print(", θ = ");
-      Serial.print(state(0));
-
+      Serial.print("ERECTING | ");
       
       if (state(1)*cos(state(0)) < 0){
         stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), 1.0, SOFT_LIM_START, SOFT_LIM_END) ));
@@ -249,14 +244,7 @@ void loop(){
     }
     //COAST 
     else {
-      Serial.print("Coast | x_dot = ");
-      Serial.print(state(3));
-      Serial.print(", x = ");
-      Serial.print(state(2));
-      Serial.print(", θ_dot = ");
-      Serial.print(state(1));
-      Serial.print(", θ = ");
-      Serial.print(state(0));
+      Serial.print("Coast | ");
       
       stepper->setSpeedInHz(toSteps(min( softSpeedLim(state(2), state(3), SOFT_LIM_START, SOFT_LIM_END), abs(state(3)) ))); //Apply soft limits to slow down as approaching limit
       if(state(3)>0) stepper->runForward();
@@ -265,23 +253,31 @@ void loop(){
   }
   //LQR Control
   else{
-    Serial.print("LQR | x_dot = ");
-    Serial.print(state(3));
-    Serial.print(", x = ");
-    Serial.print(state(2));
-    Serial.print(", θ_dot = ");
-    Serial.print(state(1));
-    Serial.print(", θ = ");
-    Serial.print(state(0));
-
+    Serial.print("LQR | ");
 
     //APPLY ACCELERATION;
-    state(3) +=  dt* (k * (fpUp-state))(0);
-    stepper->setSpeedInHz(toSteps( min( softSpeedLim(state(2), state(3), 0.5,0.8), abs(state(3)) ) ));
+    v += dt* (k * (fpUp-state))(0);
+    if (v >= 0)    v = softSpeedLim(state(2), v, 0.5, 0.8);
+    else    v = -softSpeedLim(state(2), v, 0.5, 0.8);
 
-    if (state(3)>0) stepper->runForward();
+    //APPLY ACCELERATION;
+    stepper->setSpeedInHz(abs(toSteps(v)));
+    if (v >= 0) stepper->runForward();
     else stepper->runBackward();
   }
+
+  /*
+  Serial.print("x_dot: ");
+  Serial.print(state(3));
+  Serial.print(", x: ");
+  Serial.print(state(2));
+  Serial.print(", θ_dot: ");
+  Serial.print(state(1));
+  Serial.print(", θ: ");
+  Serial.println(state(0));
+  */
+
+  Serial.println();
 }
 
 
