@@ -24,8 +24,8 @@ m_bob = 22e-3#10e-3
 m_shaft = 48e-3
 m_rod = 31e-3#25e-3
 
-r_shaft = 8e-3/2
-len = 262e-3 # 320e-3
+r_shaft = 8e-3 /2
+len = 262e-3
 c = 0.0005
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
@@ -39,7 +39,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
 #q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
-q = np.diag([150, 110, 650, 100]) #th, thdot, x, xdot
+q = np.diag([150, 110, 750, 100]) #th, thdot, x, xdot
 
 energy_const = (12*len**2*m_bob + 7*len**2*m_rod + 6*m_shaft*r_shaft**2)/(24*g*len*(m_bob+m_rod))
 

@@ -33,7 +33,7 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 
 #define MAX_SPEED_LQR 0.9
 #define MAX_SPEED 0.7
-#define MAX_ACCEL 90000
+#define MAX_ACCEL 100000
 
 //Encoder Filter Params
 #define FILTER_CONST 1.8 //1.5 //min value of 1, Higher value reduces high-speed filter %
@@ -42,11 +42,11 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 
 
 #define LQR_MAX_ANGLE 0.5 //distance from vertical for lQR control
-#define ENERGY_CONST 0.010100685652095763 //0.011372574219845546 //Constant for normalized energy expression
+#define ENERGY_CONST 0.010100685652095763*cos(LQR_MAX_ANGLE) //0.011372574219845546 //Constant for normalized energy expression
 
 //Soft limit params
-#define SOFT_LIM_START 0.2
-#define SOFT_LIM_END 0.5
+#define SOFT_LIM_START 0.8
+#define SOFT_LIM_END 0.9
 
 #define HOMING()                                        \
   Serial.println("Begin Homing");                       \
@@ -82,7 +82,7 @@ float a;
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 BLA::Matrix<1,4> k = {
 //190.58346292018933, 45.949676015077905, -60.55300708194896, -52.506193013906625
-198.26643771785666, 43.94529586609255, -61.8346942400838, -56.5417634050763
+224.42938218472486, 47.588363300737285, -66.42111641550657, -65.82543647204182
 };
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
@@ -234,11 +234,11 @@ void loop(){
       Serial.print("ERECTING | ");
       
       if (state(1)*cos(state(0)) < 0){
-        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), 1.0, SOFT_LIM_START, SOFT_LIM_END) ));
+        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), 1.0, 0.2, 0.5) ));
         stepper->runForward();
       }
       else {
-        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), -1.0, SOFT_LIM_START, SOFT_LIM_END) ));
+        stepper->setSpeedInHz(toSteps( softSpeedLim(state(2), -1.0, 0.2, 0.5) ));
         stepper->runBackward();
       }
     }
