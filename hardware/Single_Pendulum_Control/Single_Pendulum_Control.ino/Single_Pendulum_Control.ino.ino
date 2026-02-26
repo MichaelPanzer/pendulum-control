@@ -79,7 +79,7 @@ float theta;
 float llast_theta;
 float last_dt;
 float v;
-float a;
+float filterWeight;
 
 BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
 BLA::Matrix<1,4> k = {
@@ -217,9 +217,9 @@ void loop(){
   */
   theta = (4095-a) * 2.0*PI/4095.0;
 
-  a = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
+  filterWeight = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
   float d = der2(theta, state(0), llast_theta, dt, last_dt);
-  state(1) = (1-a)*d + a*state(1);
+  state(1) = (1-filterWeight)*d + filterWeight*state(1);
   
   state(3) = toDistance(1000000/stepper->getCurrentSpeedInUs());
   state(2) = toDistance(stepper->getCurrentPosition());
