@@ -45,13 +45,31 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define ENERGY_CONST 0.010100685652095763 //0.011372574219845546 //Constant for normalized energy expression
 
 //Soft limit params
-#define SOFT_LIM_START 0.6
+#define SOFT_LIM_START 0.4
 #define SOFT_LIM_END 0.7
 #define SWING_SOFT_LIM_START 0.2
 #define SWING_SOFT_LIM_END 0.25
 
+BLA::Matrix<4,1> state;
+float time, lastTime, dt;
+float theta;
+float llast_theta;
+float last_dt;
+float v;
+float filterWeight;
+
+BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
+BLA::Matrix<1,4> k = {
+//190.58346292018933, 45.949676015077905, -60.55300708194896, -52.506193013906625
+203.07649025188263, 44.607333689056915, -66.42111641550792, -58.78437164784849
+};
+
+FastAccelStepperEngine engine = FastAccelStepperEngine();
+FastAccelStepper *stepper = NULL;
+
 #define HOMING()                                        \
   Serial.println("Begin Homing");                       \
+  delay(200);                                           \
   stepper->setSpeedInHz(toSteps(0.1));                  \
   stepper->runForward();                                \
                                                         \
@@ -71,24 +89,12 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
                                                         \
   stepper->setCurrentPosition(0);                       \
   Serial.println("homed");                              \
-
-
-BLA::Matrix<4,1> state;
-float time, lastTime, dt;
-float theta;
-float llast_theta;
-float last_dt;
-float v;
-float filterWeight;
-
-BLA::Matrix<4,1> fpUp = {PI, 0, 0, 0};
-BLA::Matrix<1,4> k = {
-//190.58346292018933, 45.949676015077905, -60.55300708194896, -52.506193013906625
-203.07649025188263, 44.607333689056915, -66.42111641550792, -58.78437164784849
-};
-
-FastAccelStepperEngine engine = FastAccelStepperEngine();
-FastAccelStepper *stepper = NULL;
+  lastTime = micros()*1e-6;                             \
+  last_dt = 1e-6;                                       \
+                                                        \
+  state = {(4095-as5600.getAngle()) * 2.0*PI/4095.0, 0., 0., 0.}; \
+  theta = state(0); \
+  llast_theta = state(0);\
 
 
 
@@ -179,12 +185,6 @@ void setup(){
 
 
   delay(3000);
-  lastTime = micros()*1e-6;
-  last_dt = 1e-6;
-
-  state = {(4095-as5600.getAngle()) * 2.0*PI/4095.0, 0., 0., 0.};
-  theta = state(0);
-  llast_theta = state(0);
 }
  
 void loop(){  
@@ -268,15 +268,14 @@ void loop(){
     else stepper->runBackward();
   }
 
-  
-  Serial.print("x_dot: ");
-  Serial.print(state(3));
-  Serial.print(", x: ");
-  Serial.print(state(2));
+  Serial.print("θ: ");
+  Serial.print(state(0));
   Serial.print(", θ_dot: ");
   Serial.print(state(1));
-  Serial.print(", θ: ");
-  Serial.println(state(0));
+  Serial.print(", x: ");
+  Serial.print(state(2));
+  Serial.print(", x_dot: ");
+  Serial.println(state(3));
   
 
   //Serial.println();

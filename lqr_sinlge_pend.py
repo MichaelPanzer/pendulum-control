@@ -39,7 +39,7 @@ fp_up = np.array([np.radians(180), 0, 0, 0])
 
 #state err cost
 #q = np.diag([150, 70, 60, 20]) #th, thdot, x, xdot
-q = np.diag([150, 110, 750, 100]) #th, thdot, x, xdot
+q = np.diag([200, 110, 750, 100]) #th, thdot, x, xdot
 
 energy_const = (12*len**2*m_bob + 7*len**2*m_rod + 6*m_shaft*r_shaft**2)/(24*g*len*(m_bob+m_rod))
 
