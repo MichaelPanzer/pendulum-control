@@ -36,9 +36,10 @@ TMC2209Stepper driver(&serialPort, 0.11f, 0b00);
 #define MAX_ACCEL 110000
 
 //Encoder Filter Params
-#define FILTER_CONST 1.8 //1.5 //min value of 1, Higher value reduces high-speed filter %
-#define FILTER_LIMIT 0.90 //from 0 to 1, Baseline filter % at low speed
-#define FILTER_FLOOR 0.55 //from 0 to 1, Minimum filter % at high speed
+//#define FILTER_CONST 1.6 //1.5 //min value of 1, Higher value reduces high-speed filter %
+//#define FILTER_LIMIT 0.7 //from 0 to 1, Baseline filter % at low speed
+//#define FILTER_FLOOR 0.4 //from 0 to 1, Minimum filter % at high speed
+#define FILTER_CONST 0.4
 
 
 #define LQR_MAX_ANGLE 0.5 //distance from vertical for lQR control
@@ -217,9 +218,9 @@ void loop(){
   */
   theta = (4095-a) * 2.0*PI/4095.0;
 
-  filterWeight = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
+  //filterWeight = (FILTER_LIMIT-FILTER_FLOOR)*pow(FILTER_CONST, -abs(state(1))) + FILTER_FLOOR; //higher speed -> lower a & less weight on the previous states
   float d = der2(theta, state(0), llast_theta, dt, last_dt);
-  state(1) = (1-filterWeight)*d + filterWeight*state(1);
+  state(1) = (1-FILTER_CONST)*d + FILTER_CONST*state(1);
   
   state(3) = toDistance(1000000/stepper->getCurrentSpeedInUs());
   state(2) = toDistance(stepper->getCurrentPosition());
@@ -267,7 +268,7 @@ void loop(){
     if (v >= 0) stepper->runForward();
     else stepper->runBackward();
   }
-
+  /*
   Serial.print("θ: ");
   Serial.print(state(0));
   Serial.print(", θ_dot: ");
@@ -276,7 +277,10 @@ void loop(){
   Serial.print(state(2));
   Serial.print(", x_dot: ");
   Serial.println(state(3));
-  
+  */
+  Serial.print(d);
+  Serial.print(" ");
+  Serial.println(state(1));
 
   //Serial.println();
 }
