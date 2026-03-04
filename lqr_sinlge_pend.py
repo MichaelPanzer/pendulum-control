@@ -29,11 +29,11 @@ len = 262e-3
 c = 0.0005
 
 # Initial angular displacement (rad), tangential velocity (m.s-1)
-th0, th_dot0, x0, x_dot0 = np.radians(1), 0, 0.2, 0
+th0, th_dot0, x0, x_dot0 = np.radians(-40), 0, 0.2, 0
 
 #animation params
-duration = 30 #seconds
-fps = 45 #fps
+duration = 13 #seconds
+fps = 30 #fps
 
 fp_up = np.array([np.radians(180), 0, 0, 0])
 
@@ -102,7 +102,7 @@ def normalize(y):
 def pendulum(t, y, K=k, stab=True):
     """returns the full nonlinear state space derivative"""
     y = normalize(y)
-    th, th_dot, x, x_dot, dist = y
+    th, th_dot, x, x_dot = y
 
     y= np.array(y[:4])
 
@@ -119,10 +119,10 @@ def pendulum(t, y, K=k, stab=True):
 
     th_ddot = -(12*c*th_dot + 12*g*len*m_bob*np.sin(th) + 6*g*len*m_rod*np.sin(th) + 12*len*m_bob*np.cos(th)*x_ddot + 6*len*m_rod*np.cos(th)*x_ddot)/denom 
 
-    return np.array([th_dot, th_ddot, x_dot, x_ddot, (np.random.random()-0.5)*20])
+    return np.array([th_dot, th_ddot, x_dot, x_ddot])
 
 
-y_init = np.array([np.pi*0.9, th_dot0, x0, x_dot0, 0])
+y_init = np.array([th0, th_dot0, x0, x_dot0])
 sol = sp.integrate.solve_ivp(fun=pendulum, t_span=[0.0, duration], y0=y_init, max_step=0.01)
 
 
@@ -141,7 +141,7 @@ ax.set_xlim(-len*w, len*w)
 ax.set_ylim(-len*h, len*h)
 
 def get_r(y):
-    th, th_dot, x, x_dot, d= y
+    th, th_dot, x, x_dot = y
     """Return the (x, y) coordinates of the bob from the state variables"""
     return x, len*np.sin(th) + x, -len*np.cos(th)
 
@@ -168,8 +168,10 @@ nframes = duration*fps
 times = np.linspace(0,duration, num=nframes) 
 ani = animation.FuncAnimation(fig, animate, frames=nframes, repeat=False, interval=1000/fps, fargs = (times,))
 plt.show()
+ani.save("ani.gif", dpi=300, writer=animation.PillowWriter(fps=15))
 
-plt.plot(time_tree.data, states[4], 'b', label='θ')#theta position
+
+plt.plot(time_tree.data, states[0], 'b', label='θ')#theta position
 plt.plot(time_tree.data, states[1], 'r', label='θ_dot')#theta_dot position
 
 
